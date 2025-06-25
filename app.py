@@ -10,8 +10,7 @@ import uvicorn
 # Download model
 model_path = hf_hub_download(
     repo_id="WarTitan2077/Speed-Hit-Randomized",
-    filename="speed_hit_model.pkl",
-    token="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"
+    filename="speed_hit_model.pkl"
 )
 model = joblib.load(model_path)
 
