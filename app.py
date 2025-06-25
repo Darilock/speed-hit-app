@@ -4,11 +4,15 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from huggingface_hub import hf_hub_download
 import gradio as gr
+import os
 
-# Download the model from Hugging Face
+token = os.getenv("HF_TOKEN")  # safe access via environment variable
+
+
 model_path = hf_hub_download(
     repo_id="WarTitan2077/Speed-Hit-Randomized",
-    filename="speed_hit_model.pkl"
+    filename="speed_hit_model.pkl",
+    token=token  # will be None if not set, but okay for public models
 )
 
 # Load the model
@@ -91,12 +95,13 @@ def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
     }
     input_df = prepare_input(data)
     pred = model.predict(input_df)[0]
-    labels = {
-        0: "Player attacks twice and counters twice",
-        1: "Enemy attacks twice and counters twice",
-        2: "Both attack once"
-    }
-    return labels.get(pred, "Unknown")
+   labels = {
+    0: "Player attacks twice and counters twice",
+    1: "Enemy attacks twice and counters twice",
+    2: "Both attack once"
+}
+return labels.get(pred, "Unknown")
+
 
 # Gradio UI
 demo = gr.Interface(
@@ -122,4 +127,5 @@ demo = gr.Interface(
 def gradio_root():
     return {"message": "Go to /gradio for the UI or POST to /predict for API access"}
 
+# Make sure to do this *after* all FastAPI routes are declared
 app = gr.mount_gradio_app(app, demo, path="/gradio")
