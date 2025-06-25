@@ -1,78 +1,120 @@
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+import pandas as pd
 import joblib
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
 from huggingface_hub import hf_hub_download
-
 import gradio as gr
-import uvicorn
 
-# Download model
+# Download the model from Hugging Face
 model_path = hf_hub_download(
     repo_id="WarTitan2077/Speed-Hit-Randomized",
     filename="speed_hit_model.pkl"
 )
+
+# Load the model
 model = joblib.load(model_path)
 
-# --- FastAPI app ---
+# Initialize FastAPI
 app = FastAPI()
 
-class Stats(BaseModel):
+# Define Pydantic model for API input
+class BattleInput(BaseModel):
     player_speed: int
     player_weight: int
+    enemy_speed: int
+    enemy_weight: int
     player_attack_accuracy: float
     player_hit_accuracy: float
     player_avoidance: float
-    enemy_speed: int
-    enemy_weight: int
-    enemy_attack_accuracy: float = 0.5
-    enemy_hit_accuracy: float = 1.0
-    enemy_avoidance: float = 0.5
+    enemy_attack_accuracy: float
+    enemy_hit_accuracy: float
+    enemy_avoidance: float
 
-@app.get("/")
-def root():
-    return RedirectResponse(url="/gradio")
+# Calculate derived features
+def prepare_input(data: dict) -> pd.DataFrame:
+    ps = data["player_speed"]
+    pw = data["player_weight"]
+    es = data["enemy_speed"]
+    ew = data["enemy_weight"]
 
+    paa = data["player_attack_accuracy"]
+    pha = data["player_hit_accuracy"]
+    pao = data["player_avoidance"]
+
+    eaa = data["enemy_attack_accuracy"]
+    eha = data["enemy_hit_accuracy"]
+    eao = data["enemy_avoidance"]
+
+    player_base_speed = ps - pw
+    enemy_base_speed = es - ew
+
+    player_hit_chance = paa * pha * (1 - eao)
+    enemy_hit_chance = eaa * eha * (1 - pao)
+
+    return pd.DataFrame([{
+        "Player Speed": ps,
+        "Player Weight": pw,
+        "Player Base Speed": player_base_speed,
+        "Player Attack Accuracy": paa,
+        "Player Hit Accuracy": pha,
+        "Player Avoidance": pao,
+        "Player Hit Chance": round(player_hit_chance, 2),
+
+        "Enemy Speed": es,
+        "Enemy Weight": ew,
+        "Enemy Base Speed": enemy_base_speed,
+        "Enemy Attack Accuracy": eaa,
+        "Enemy Hit Accuracy": eha,
+        "Enemy Avoidance": eao,
+        "Enemy Hit Chance": round(enemy_hit_chance, 2)
+    }])
+
+# FastAPI route
 @app.post("/predict")
-def predict(stats: Stats):
-    pbs = stats.player_speed - stats.player_weight
-    ebs = stats.enemy_speed - stats.enemy_weight
-    input_data = [[
-        stats.player_speed, stats.player_weight, pbs,
-        stats.player_attack_accuracy, stats.player_hit_accuracy, stats.player_avoidance,
-        stats.enemy_speed, stats.enemy_weight, ebs,
-        stats.enemy_attack_accuracy, stats.enemy_hit_accuracy, stats.enemy_avoidance
-    ]]
-    outcome = model.predict(input_data)[0]
-    return {"outcome": outcome}
+async def predict(input_data: BattleInput):
+    input_df = prepare_input(input_data.dict())
+    prediction = model.predict(input_df)[0]
+    return {"outcome": prediction}
 
-# --- Gradio interface ---
-def gradio_predict(ps, pw, paa, pha, pao, es, ew, eaa, eha, eao):
-    pbs = ps - pw
-    ebs = es - ew
-    input_data = [[ps, pw, pbs, paa, pha, pao, es, ew, ebs, eaa, eha, eao]]
-    return model.predict(input_data)[0]
+# Gradio function
+def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
+    data = {
+        "player_speed": ps,
+        "player_weight": pw,
+        "enemy_speed": es,
+        "enemy_weight": ew,
+        "player_attack_accuracy": paa,
+        "player_hit_accuracy": pha,
+        "player_avoidance": pao,
+        "enemy_attack_accuracy": eaa,
+        "enemy_hit_accuracy": eha,
+        "enemy_avoidance": eao,
+    }
+    input_df = prepare_input(data)
+    return model.predict(input_df)[0]
 
+# Gradio UI
 demo = gr.Interface(
     fn=gradio_predict,
     inputs=[
-        gr.Slider(10, 100, step=1, label="Player Speed"),
-        gr.Slider(0, 10, step=1, label="Player Weight"),
-        gr.Slider(0, 1, step=0.01, label="Player Attack Accuracy"),
-        gr.Slider(0, 1.5, step=0.01, label="Player Hit Accuracy"),
-        gr.Slider(0, 1, step=0.01, label="Player Avoidance"),
-        gr.Slider(10, 100, step=1, label="Enemy Speed"),
-        gr.Slider(0, 10, step=1, label="Enemy Weight"),
-        gr.Slider(0, 1, step=0.01, label="Enemy Attack Accuracy"),
-        gr.Slider(0, 1.5, step=0.01, label="Enemy Hit Accuracy"),
-        gr.Slider(0, 1, step=0.01, label="Enemy Avoidance")
+        gr.Slider(10, 100, label="Player Speed"),
+        gr.Slider(0, 10, label="Player Weight"),
+        gr.Slider(10, 100, label="Enemy Speed"),
+        gr.Slider(0, 10, label="Enemy Weight"),
+        gr.Slider(0.0, 1.0, step=0.01, label="Player Attack Accuracy"),
+        gr.Slider(0.0, 1.5, step=0.01, label="Player Hit Accuracy"),
+        gr.Slider(0.0, 1.0, step=0.01, label="Player Avoidance"),
+        gr.Slider(0.0, 1.0, step=0.01, label="Enemy Attack Accuracy"),
+        gr.Slider(0.0, 1.5, step=0.01, label="Enemy Hit Accuracy"),
+        gr.Slider(0.0, 1.0, step=0.01, label="Enemy Avoidance"),
     ],
     outputs="text",
-    title="Battle Outcome Predictor"
+    title="Battle Outcome Predictor",
 )
 
-app = gr.mount_gradio_app(app, demo, path="/gradio")
+# Mount Gradio app on FastAPI
+@app.get("/")
+def gradio_root():
+    return {"message": "Go to /gradio for the UI or POST to /predict for API access"}
 
-# Only needed locally
-if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=10000)
+app = gr.mount_gradio_app(app, demo, path="/gradio")
