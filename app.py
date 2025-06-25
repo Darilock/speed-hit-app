@@ -76,7 +76,6 @@ async def predict(input_data: BattleInput):
     prediction = model.predict(input_df)[0]
     return {"outcome": prediction}
 
-# Gradio function
 def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
     data = {
         "player_speed": ps,
@@ -91,7 +90,13 @@ def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
         "enemy_avoidance": eao,
     }
     input_df = prepare_input(data)
-    return model.predict(input_df)[0]
+    pred = model.predict(input_df)[0]
+    labels = {
+        0: "Player attacks twice and counters twice",
+        1: "Enemy attacks twice and counters twice",
+        2: "Both attack once"
+    }
+    return labels.get(pred, "Unknown")
 
 # Gradio UI
 demo = gr.Interface(
