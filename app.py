@@ -3,10 +3,18 @@ from fastapi.middleware.wsgi import WSGIMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import joblib
+from huggingface_hub import hf_hub_download
+import os
 import gradio as gr
 
-# Load model
-model = joblib.load("speed_hit_model.pkl")
+model_path = hf_hub_download(
+    repo_id="WarTitan2077/Speed-Hit-Randomized",
+    filename="speed_hit_model.pkl"
+    token="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"
+)
+
+# Load the model
+model = joblib.load(model_path)
 
 # Label mapping
 label_reverse = {
