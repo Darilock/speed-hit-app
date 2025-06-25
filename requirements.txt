@@ -1,8 +1,8 @@
 fastapi
 uvicorn
 pydantic
+gradio
 pandas
 joblib
 scikit-learn
-gradio
 huggingface_hub
