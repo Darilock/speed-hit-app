@@ -18,6 +18,12 @@ model_path = hf_hub_download(
 # Load the model
 model = joblib.load(model_path)
 
+# Define prediction labels
+labels = {
+    0: "Player attacks twice",
+    1: "Enemy attacks twice",
+    2: "Both attack once"
+}
 # Initialize FastAPI
 app = FastAPI()
 
