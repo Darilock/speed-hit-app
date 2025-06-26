@@ -77,8 +77,10 @@ def prepare_input(data: dict) -> pd.DataFrame:
 @app.post("/predict")
 async def predict(input_data: BattleInput):
     input_df = prepare_input(input_data.dict())
-    prediction = model.predict(input_df)[0]
-    return {"outcome": int(prediction)}
+    prediction = int(model.predict(input_df)[0])
+    label = labels.get(prediction, "Unknown outcome")
+    return {"outcome": label}
+
     
 def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
     data = {
