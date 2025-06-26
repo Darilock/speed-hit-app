@@ -78,8 +78,8 @@ def prepare_input(data: dict) -> pd.DataFrame:
 async def predict(input_data: BattleInput):
     input_df = prepare_input(input_data.dict())
     prediction = model.predict(input_df)[0]
-    return {"outcome": prediction}
-
+    return {"outcome": int(prediction)}
+    
 def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
     data = {
         "player_speed": ps,
