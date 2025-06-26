@@ -100,7 +100,7 @@ def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
         1: "Enemy attacks twice and counters twice",
         2: "Both attack once"
 }
-return labels.get(pred, "Unknown")
+    return labels.get(pred, "Unknown")
 
 
 # Gradio UI
