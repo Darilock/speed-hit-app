@@ -95,10 +95,10 @@ def gradio_predict(ps, pw, es, ew, paa, pha, pao, eaa, eha, eao):
     }
     input_df = prepare_input(data)
     pred = model.predict(input_df)[0]
-   labels = {
-    0: "Player attacks twice and counters twice",
-    1: "Enemy attacks twice and counters twice",
-    2: "Both attack once"
+    labels = {
+        0: "Player attacks twice and counters twice",
+        1: "Enemy attacks twice and counters twice",
+        2: "Both attack once"
 }
 return labels.get(pred, "Unknown")
 
